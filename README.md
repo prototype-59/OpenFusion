@@ -1,2 +1,2 @@
 # OpenFusion
-Text Analytics Rools
+Text Analytics Tools
