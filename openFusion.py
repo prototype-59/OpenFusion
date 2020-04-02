@@ -6,7 +6,7 @@ Fetch PubMed articles according to the given query string and create a database
 __author__ = "Aleksandar Radovanovic"
 __copyright__ = "Copyright 2020, project covmt"
 __license__ = "MIT"
-__version__ = "1.0"
+__version__ = "1.1"
 __maintainer__ = "Aleksandar Radovanovic"
 __email__ = "aleksandar@radovanovic.com"
 __status__ = "Development"
