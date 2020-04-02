@@ -1,7 +1,7 @@
 # OpenFusion
-## Text Analytics Tools
+## PubMed Text Analytics Tools
 
-* `getPubMed.py` downloads PubMed articles, saves them as pubmed_result.txt and creates a Sqlite3 database `tmdb`
+* `openFusion.py` downloads PubMed articles, saves them as text file and as a SQLite database
 
 ## Citation
 Get it here:  [![DOI](https://zenodo.org/badge/248162501.svg)](https://zenodo.org/badge/latestdoi/248162501)
