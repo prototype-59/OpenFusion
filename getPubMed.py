@@ -16,14 +16,18 @@ from Bio import Entrez, Medline
 
 def main():
     args = getArgs()
-    if args.r and args.db != None and args.query != None and args.email != None:
-        # check email format
-        regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+    if args.f != None :
+        processPubmed(args.db, args.f)
+    elif args.query != None and args.email != None :
+        regex = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$' # check email format
         if not re.search(regex, args.email):
             print("Invalid email address given!")
-            parser.print_help()
+            sys.exit()
         else:
             getPubMed(args.db, args.query, args.email)
+            processPubmed(args.db, args.db + ".txt")
+    else :
+        print("Invallid combination of arguments. Use either:\n   -db db_name -f PubMed_filename or \n  -db db_name -e your_email -q \"PubMed query string\"")
     return
 
 #------------------------------------------------------------------------------
@@ -33,14 +37,31 @@ def main():
 def getArgs():
     optional = parser._action_groups.pop() 
     required = parser.add_argument_group('required arguments')
-    required.add_argument("-db", dest="db", help="SQLite database name with no file extension.",required=True)
-    optional.add_argument("-r", dest="r", help="PubMed retreival required and/or",action='store_true')
-    optional.add_argument("-m", dest="m", help="Text mining required",action='store_true')
-    optional.add_argument("-q", dest="query", help="PubMed query string.")
-    optional.add_argument("-e", dest="email", help="Your email (required by the PubMed).")
-    parser._action_groups.append(optional) 
+    required.add_argument("-db", dest="db", help="SQLite database name, e.g. myPubMed.db",required=True)
+    optional.add_argument("-f", dest="f", help="File containing PubMed abstracts")
+    optional.add_argument("-q", dest="query", help="PubMed query string, e.g. \"Alpers Disease\".")
+    optional.add_argument("-e", dest="email", help="Your email (required by PubMed).")
+    parser._action_groups.append(optional)
     args = parser.parse_args()
     return args
+
+#------------------------------------------------------------------------------
+# convert PubMed dates into ISO standard (e.g. 1969 Sep-Oct  to yyyy-mm-dd)
+#------------------------------------------------------------------------------
+
+def date_to_isodate(str) :
+    month = ['none','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    date = str.split(" ")
+    str = date[0]
+    if len(date) > 1 :
+        date[1] = date[1].replace("Fall", "Sep").replace("Summer", "Jun").replace("Winter", "Dec").replace("Spring", "Mar")
+        str += "-" + f"{month.index(date[1][0:3]):02d}"
+        if len(date) > 2 :
+            regex = '^[0-9]+$'
+            if re.search(regex, date[2]):
+                str += "-" + f"{int(date[2]):02d}"
+    return str
+
 
 #------------------------------------------------------------------------------
 # PubMed retreival
@@ -48,7 +69,6 @@ def getArgs():
 
 def getPubMed(db, query, email):
     file = db + ".txt"
-    database = db + ".db"
 
     # get pubmed articles vie entrez utility
     Entrez.email = email
@@ -78,27 +98,38 @@ def getPubMed(db, query, email):
         fetch_handle.close()
         out_handle.write(data)
     out_handle.close()
+    return
 
+def processPubmed(db, file) :
     # process pubmed articles and write them into a database
     pubmedTable = """
-    CREATE TABLE pubmed (
-	    pmid INTEGER NOT NULL PRIMARY KEY UNIQUE,
-        title TEXT,
-        abstract TEXT,
-        date TEXT
+        CREATE TABLE IF NOT EXISTS corpus (
+	        id INTEGER NOT NULL PRIMARY KEY UNIQUE,
+            author TEXT,
+            title TEXT,
+            abstract TEXT,
+            body TEXT,
+            date TEXT,
+            annotation TEXT
     );"""
-    pubmedInsert = "INSERT INTO pubmed  (pmid, title, abstract, date)  VALUES (?,?,?,?)"
+    pubmedInsert = "INSERT INTO corpus  (id, author, title, abstract, date)  VALUES (?,?,?,?,?)"
 
-    # remove old and create a new database
-    if os.path.exists(database):
-        os.remove(database)
-    conn = sqlite3.connect(database)
+    conn = sqlite3.connect(db)
     c = conn.cursor()
     c.execute(pubmedTable)
-
+    
     with open(file) as handle:
         for record in Medline.parse(handle):
-            c.execute( pubmedInsert, [record["PMID"],record["TI"],record["AB"],dateutil.parser.parse(record["DP"]).isoformat().split("T")[0]] )
+            # csv list of authors's full names (fau)
+            fau = ""
+            ab = ""
+            if "FAU" in record :
+                fau = "|".join(map(str, record["FAU"])).replace(',','').replace('|',', ')
+            if "AB" in record :
+                ab = record["AB"]
+            date = date_to_isodate(record["DP"])
+            c.execute( pubmedInsert, [record["PMID"], fau, record["TI"],ab,date] )
+
 
     conn.commit()
     conn.close()
@@ -109,5 +140,6 @@ def getPubMed(db, query, email):
 # execute the main function
 #------------------------------------------------------------------------------
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='PubMed text mining utility.')
+    parser = argparse.ArgumentParser(description='Get PubMed articles.')
     main()
+
