@@ -8,6 +8,13 @@ OpenFusion is a text analytics tool for creating **SQLite** biomedical databases
 3. annotate text with `annotate.py`
 4. see the result in SQLite database `myDatabase.db`
 
+### Python Requirements
+Install or upgrade Biopython
+
+        pip install biopython
+        pip install --upgrade biopython
+
+
 ### Processing steps
 
 1. Retreive PubMed articles related to your topic with the `getPubmed.py` tool. For example, to create a database on Alpers Disease, type
@@ -32,7 +39,7 @@ OpenFusion is a text analytics tool for creating **SQLite** biomedical databases
     `-db my.db`: database name\
     `-name "Human Genes"`: dictionary name\
     `-color "#d6eaf8"`: dictionary display color\
-    `-f genes.txt`: name of the file with dictionary terms.
+    `-f genes.txt`: dictionary terms filename.
 
 
     
