@@ -19,12 +19,12 @@ All you need is `OpenFusion.py`. The rest is simple as 1, 2, 3:
 
        Alpers Disease       Progressive Cerebral Poliodystrophy
    <br>
-2. Create a project file, e.g. `myProject.yml`. Sinmply use provided template for your porjects.
+2. Create a project file, e.g. `myProject.yml`. Simply use provided template for your porjects.
    <br>
 3. Run:
 
        ./OpenFusion.py -p myProject.yml
-   The program will create SQLite database specified in the project file. In addition, it will create a file containing PubMed articles in MEDLINE format, so you don't have to download them again if you wish to recreate the database.
+   The program will create SQLite database as specified in the project file. In addition, it will create a file containing PubMed articles in MEDLINE format, so you don't have to download them again if you wish to recreate the database.
 
 ### Database
 The SQLite database created by a program can be used for futher research, displayed on the web as tables or as graphs.
