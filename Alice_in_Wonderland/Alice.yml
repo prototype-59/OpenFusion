@@ -1,0 +1,14 @@
+---
+database: aiwc.db       # name of your SQLite database
+email: opefusionx@gmail.com   # email required for PubMed
+query: Alice in Wonderland Syndrome   # PubMed query string
+dictionary:             # create glossary of terms
+- name: People
+  file: people.txt
+- name: Disease
+  file: disease.txt
+run:               # what modules to run
+- getPubMedCorpus  # get articles online from PubMed
+#- getFileCorpus   # get articles from a file
+- addDictionary    # create glossary of terms
+- annotate         # annotate PubMed articles

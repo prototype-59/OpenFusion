@@ -1,0 +1,14 @@
+---
+database: mydb.db       # name of your SQLite database
+email: opefusionx@gmail.com   # email required for PubMed
+query: RPI deficiency   # PubMed query string
+dictionary:             # create glossary of terms
+- name: Human Genes
+  file: dictionaries/HGNC-genes.txt
+- name: Diseases
+  file: dictionaries/diseases.txt
+run:               # what modules to run
+- getPubMedCorpus  # get articles online from PubMed or
+#- getFileCorpus   # get articles from a file downloaded in MEDLINE format
+- addDictionary    # create glossary of terms
+- annotate         # annotate PubMed articles

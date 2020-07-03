@@ -1,47 +1,35 @@
-# OpenFusion
-## Text Analytics Tools
+### OpenFusion / Text Analytics
 
-OpenFusion is a text analytics tool for creating **SQLite** biomedical databases on specific topic by using **PubMed** as a source. This  database can be used locally or on the web.
+**OpenFusion.py** is a text analytics tool written in Python for creating **SQLite** biomedical databases on specific topic by using **PubMed** (https://pubmed.ncbi.nlm.nih.gov/) as a source. This database file can be used locally or on the web.
 
-1. retreive PubMed articles with `getPubmed.py`
-2. create dictionaries with `addDictionary.py`
-3. annotate text with `annotate.py`
-4. see the result in SQLite database `myDatabase.db`
+<img src="openfusion.svg" style="width:95%;height:auto;"/>
 
-### Python Requirements
+
+#### Python Requirements
 Install or upgrade Biopython
 
         pip install biopython
         pip install --upgrade biopython
 
 
-### Processing steps
+#### Using the program
 
-1. Retreive PubMed articles related to your topic with the `getPubmed.py` tool. For example, to create a database on Alpers Disease, type
+It is simple as 1, 2, 3:
 
-        ./getPubmed.py -db my.db -e myemail@email.com -q "Alpers Disease"
-
-    `-db my.db`: database name (if not exists, it will be crearted)\
-    `-e myemail@email.com`: your email required by PubMed\
-    `-q "Alpers Disease"`: PubMed query string\
-    In addition to database, this tool creates a text file `my.db.txt` containing all retreived articles.<br>
-    If you already have a file and want to create a new database, type
-
-       ./getPubmed.py-db db_name -f PubMed_filename
-    <br>
-2. Create files containing dictionary terms, e.g. genes.txt, diseases.txt, etc. Each line must contain a word or phrase, which can be followed by tab-separated synonyms, e.g.
+1. Create files containing dictionary terms, e.g. genes.txt, diseases.txt, etc. Each line must contain a word or phrase, which can be followed by tab-separated synonyms, e.g.
 
        Alpers Disease       Progressive Cerebral Poliodystrophy
+   <br>
+2. Create a project file, e.g. `myProject.yml`. Sinmply use provided template for your porjects.
+   <br>
+3. Run:
+
+       ./OpenFusion.py -p myProject.yml
+   The program will create SQLite database specified in the project file. In addition, it will create a file containing PubMed articles in MEDLINE format, so you don't have to download them again if you wish to recreate the database.
+
+#### Example
+
+have a look at the example files in the [Alice_in_Wonderland](Alice_in_Wonderland/README.md)  directory.
     
-    Add these dictionaries, one by one, with the `addDictionary.py` tool to your database created in the first step. For example,
-
-       ./addDictionary.py -db tm.db -name "Human Genes" -color "#d6eaf8"  -f genes.txt
-    `-db my.db`: database name\
-    `-name "Human Genes"`: dictionary name\
-    `-color "#d6eaf8"`: dictionary display color\
-    `-f genes.txt`: dictionary terms filename.
-
-
-    
-### Citation
+#### Citation
 Get it here:  [![DOI](https://zenodo.org/badge/248162501.svg)](https://zenodo.org/badge/latestdoi/248162501)
