@@ -35,7 +35,7 @@ run:               # what modules to run
 
        ./OpenFusion.py -p Alice.yml
 
-   The program will create SQLite database specified in the project file. You can open this database with the DB Browser for SQLite (https://sqlitebrowser.org). You can use this database in your biomedical projects, machine learning research etc. For this, you will need to read the database documentation.
+   The program will create SQLite database specified in the project file. You can open this database with the DB Browser for SQLite (https://sqlitebrowser.org). You can use this database in your biomedical projects, machine learning research etc. For this, you will need to read the database [documentation](database.md).
 
     
 #### Citation
