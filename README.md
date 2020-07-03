@@ -2,8 +2,7 @@
 
 **OpenFusion.py** is a text analytics tool written in Python for creating **SQLite** biomedical databases on specific topic by using **PubMed** (https://pubmed.ncbi.nlm.nih.gov/) as a source. This database file can be used locally or on the web.
 
-<img src="openfusion.svg" style="width:95%;height:auto;"/>
-
+<img src="openfusion.svg" height="400"/>
 
 #### Python Requirements
 Install or upgrade Biopython

@@ -1,6 +1,6 @@
 ###Alice in Wonderland syndrome
 <p align="center">
-<img src="img/alice.jpg" style="align:center;width:50%;height:auto;"/>
+<img src="img/alice.jpg" height="200"/>
 </p>
 Alice in Wonderland syndrome (AWS) is a rare condition that causes episodes of distorted perception. You may feel larger or smaller than you actually are.
 
