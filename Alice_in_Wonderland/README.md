@@ -1,6 +1,6 @@
 ###Alice in Wonderland syndrome
 <p align="center">
-<img src="img/alice.jpg" height="200"/>
+<img src="../img/alice.jpg" height="200"/>
 </p>
 Alice in Wonderland syndrome (AWS) is a rare condition that causes episodes of distorted perception. You may feel larger or smaller than you actually are.
 
@@ -35,7 +35,7 @@ run:               # what modules to run
 
        ./OpenFusion.py -p Alice.yml
 
-   The program will create SQLite database specified in the project file. You can open this database with the DB Browser for SQLite (https://sqlitebrowser.org). You can use this database in your biomedical projects, machine learning research etc. For this, you will need to read the database [documentation](database.md).
+   The program will create SQLite database specified in the project file. You can open this database with the DB Browser for SQLite (https://sqlitebrowser.org). You can use this database in your biomedical projects, machine learning research etc.
 
     
 #### Citation
