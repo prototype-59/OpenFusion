@@ -1,4 +1,5 @@
-###Alice in Wonderland syndrome
+### Alice in Wonderland syndrome
+
 <p align="center">
 <img src="../img/alice.jpg" height="200"/>
 </p>
