@@ -22,16 +22,24 @@ _id = 0
 #------------------------------------------------------------------------------
 
 def date_to_isodate(str) :
-    month = ['none','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    str = str.replace("-", " ").replace("/", " ").replace(".", " ")
+    month = {'Fall':'9','Autumn':'9','Aut':'9','Winter':'12','Spring':'3','Summer':'6', 'Jan':'1','Feb':'2','Mar':'3','Apr':'4','May':'5','Jun':'6','Jul':'7','Aug':'8','Sep':'9','Oct':'10','Nov':'11','Dec':'12'}
     date = str.split(" ")
-    str = date[0]
+
+    if date[0].isdigit() :  
+        str = date[0]
+    else :
+        str = date[1]       # sometimes month/season comes before the year
+        date[1] = date[0]
+
     if len(date) > 1 :
-        date[1] = date[1].replace("Fall", "Sep").replace("Summer", "Jun").replace("Winter", "Dec").replace("Spring", "Mar")
-        str += "-" + f"{month.index(date[1][0:3]):02d}"
-        if len(date) > 2 :
-            regex = '^[0-9]+$'
-            if re.search(regex, date[2]):
-                str += "-" + f"{int(date[2]):02d}"
+        if date[1].isdigit() :
+            str += "-" + f"{int(date[1]):02d}"
+        else:
+            date[1] = re.sub('({})'.format('|'.join(map(re.escape, month.keys()))), lambda m: month[m.group()], date[1])
+            str += "-" + f"{int(date[1]):02d}"
+        if len(date) > 2 and date[2].isdigit() :
+            str += "-" + f"{int(date[2]):02d}"
     return str
 
 #------------------------------------------------------------------------------
@@ -97,8 +105,12 @@ def processPubmedFile(db) :
         for record in Medline.parse(handle):
             if "TI" not in record : # skip articles with no title
                 continue
+
             fau = ""         # csv list of authors's full names (fau)
             article = record["TI"]
+            # some articles are in between [] - remove it
+            if record["TI"].startswith('[') and record["TI"].endswith('].') :
+                article = article[1:-2] + '.'
             if "FAU" in record :
                 fau = "|".join(map(str, record["FAU"])).replace(',','').replace('|',', ')
             if "AB" in record :
@@ -221,11 +233,14 @@ def annotate(db):
     conn = sqlite3.connect(db)
     c = conn.cursor()
     
+    # reset previous annotation
     c.execute("DROP TABLE IF EXISTS annotation")
+    conn.commit()
+    c.execute('UPDATE corpus SET annotation=NULL')
     conn.commit()
 
     sql = """
-        CREATE TABLE IF NOT EXISTS annotation (
+        CREATE TABLE annotation (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
         pmid INTEGER,
         did INTEGER, 
@@ -260,12 +275,12 @@ def annotate(db):
 
         # Annotating
         data = []
-        c.execute('SELECT pmid, article FROM corpus') 
+        punctuation = {'.\u00B6': '  ', '\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  '}
+        c.execute('SELECT pmid, article FROM corpus')
         for record in c:
+            # prepare text by replacing special characters and punctuations
             article = record[1] + ' '
-
-            # TEST 
-            #article = "Outpatients, with inflammatory disease, sulfasalazine. were given. "           
+            article = re.sub('({})'.format('|'.join(map(re.escape, punctuation.keys()))), lambda m: punctuation[m.group()], article)
             end_idx = len(article) - 1   # index of the last character in article
 
             # loop the artilce by making text window of 100 (the longest phrase)
