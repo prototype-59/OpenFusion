@@ -21,7 +21,7 @@ dictionary:             # create glossary of terms
   file: people.txt
 - name: Disease
   file: disease.txt
-homographs: False    # True/False for homographs anotations
+homographs: False  # True/False for homographs anotations
 run:               # what modules to run
 - getPubMedCorpus  # get articles online from PubMed
 #- getFileCorpus   # get articles from a file

@@ -94,5 +94,10 @@ Tables:
 
 Have a look at the example in the [Alice_in_Wonderland](Alice_in_Wonderland/README.md)  directory.
 
+
+#### Web utilities
+The directory [web_utils](web_utils/README.md) contains number of utilities written in Python and PHP that you can use to publish your database online. 
+
+
 #### Citation
 Get it here:  [![DOI](https://zenodo.org/badge/248162501.svg)](https://zenodo.org/badge/latestdoi/248162501)
