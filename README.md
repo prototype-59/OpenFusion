@@ -51,13 +51,13 @@ Tables:
    - `date`: the article date in ISO format
    - `annotation`: article annotation in JSON format,each 
       ```jso
-      [did, tid,term_postion_within_article, term_name]
+      [did, tid,start_term_postion,end_term_postion term_name]
       ```
-      For example, the term "epilepsy" (dictionary 2, term 8) is found on the position 954 and the term migraine" (did=2, tid=7) is found on the position 1072 within the article.
+      For example, the term "visual illusions" (dictionary 2, term 13) occupy positions from  8 to 23 and the term migraine" (did=2, tid=7) occupy positions from 54 to 61 in the article.
       ```json
       [
-	      [2, 8, 954, "epilepsy"],
-	      [2, 7, 1072, "migraine"]
+         [2, 13, 8, 23, "visual illusions"]
+         [2, 7, 54, 61, "migraine"],
       ]
       ```
       This information is useful for highligting terms, each dictionary can be displayed in diferent color, when displaying article on the web.

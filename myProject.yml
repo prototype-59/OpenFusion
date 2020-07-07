@@ -7,6 +7,7 @@ dictionary:             # create glossary of terms
   file: dictionaries/HGNC-genes.txt
 - name: Diseases
   file: dictionaries/diseases.txt
+homographs: False    # True/False for homographs anotations
 run:               # what modules to run
 - getPubMedCorpus  # get articles online from PubMed or
 #- getFileCorpus   # get articles from a file downloaded in MEDLINE format

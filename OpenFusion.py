@@ -226,10 +226,9 @@ def in_trie(trie, word):
 # Each term found is recorded as: pmid, did, tid, idx, term_synonym
 #------------------------------------------------------------------------------
 
-def annotate(db):
+def annotate(db, homographs):
     if not os.path.exists(db):
-        print("Database " + db + " does not exists!")
-        sys.exit()
+        sys.exit("Database " + db + " does not exists!")
     conn = sqlite3.connect(db)
     c = conn.cursor()
     
@@ -245,22 +244,36 @@ def annotate(db):
         pmid INTEGER,
         did INTEGER, 
         tid INTEGER,
-        idx INTEGER,
+        start INTEGER,
+        end INTEGER,
         term TEXT
     );
     """
     c.execute(sql)
     conn.commit()
+    conn.close()
+
+    if homographs  :
+        homographs_annotate(db)
+    else :
+        no_homographs_annotate(db)
+
+    return
+
+
+def homographs_annotate(db):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
 
     # loop dictionaries 
     c.execute('SELECT did FROM dictionary')
     dictionary_list = [i[0] for i in c.fetchall()]
     
-    # annotate for each of the dictionaries
+    # annotate for each of the dictionaries separately to include homographs
     for did in dictionary_list :
 
         # get terms in this dictionary
-        c.execute('SELECT * FROM glossary WHERE did =?', [did])
+        c.execute('SELECT * FROM glossary WHERE did = ?', [did])
         
         # get dictionary terms
         dictionary = []
@@ -274,30 +287,37 @@ def annotate(db):
         trie = make_trie(dictionary)
 
         # Annotating
+        stopwords = {
+         '.\u00B6': '  ','\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  ', ' than ': '      ',' then ': '      '
+        }
         data = []
-        punctuation = {'.\u00B6': '  ', '\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  '}
         c.execute('SELECT pmid, article FROM corpus')
         for record in c:
-            # prepare text by replacing special characters and punctuations
+            # prepare text by removing stopwords
             article = record[1] + ' '
-            article = re.sub('({})'.format('|'.join(map(re.escape, punctuation.keys()))), lambda m: punctuation[m.group()], article)
+            article = re.sub('({})'.format('|'.join(map(re.escape, stopwords.keys()))), lambda m: stopwords[m.group()], article)
             end_idx = len(article) - 1   # index of the last character in article
 
             # loop the artilce by making text window of 100 (the longest phrase)
             window_start = 0
-            window_end = WIN_SIZE + 1 if end_idx > WIN_SIZE else end_idx + 1
+            window_end = WIN_SIZE if end_idx > WIN_SIZE else end_idx
 
             # find the whole word from the right
-            while article[window_end:window_end+1] != ' ' and window_end > 2 :
-                window_end -= 1
+            while article[window_end-1:window_end:] != ' '  and window_end <= end_idx :
+                window_end += 1
 
             while window_start < end_idx  :
                 while window_end > window_start + 1:
                     text = article[window_start:window_end]
                     term_id = in_trie(trie, text)
                     if term_id :
-                        data.append([record[0], did, term_id, window_start, text])
-                    window_end -= 1
+                        data.append([record[0], did, term_id, window_start, window_end-1, text])
+                        window_start = window_end
+                        break
+                    else :
+                        window_end -= 1
+                        while article[window_end:window_end+1] != ' ' and window_end > window_start :
+                            window_end -= 1
 
                 # shift the window to the right
                 while article[window_start:window_start+1] != ' ' and window_start < end_idx :
@@ -309,11 +329,80 @@ def annotate(db):
                 while article[window_end:window_end+1] != ' ' and window_end > 2 :
                     window_end -= 1
     
-        c.executemany("INSERT INTO annotation (pmid, did, tid, idx, term) VALUES (?,?,?,?,?)", data)
+        c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
         conn.commit()
 
     conn.close()
     return
+
+def no_homographs_annotate(db):
+    conn = sqlite3.connect(db)
+    c = conn.cursor()
+
+    # create trie structure that holds term id as: ddtid 
+    # where dd is 2-digit dictionary number and tid is the term number e.g. 0176
+
+    c.execute("SELECT printf('%02d', did)  ||''|| tid AS id ,term FROM glossary")
+    dictionary = []
+    for row in c :
+        tid = row[0]
+        terms = row[1].split('\t') # synonyms
+        for term in terms :
+            dictionary.append([tid, term])
+        
+    trie = make_trie(dictionary)
+    
+    # Annotating
+    stopwords = {
+        '.\u00B6': '  ','\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  ', ' than ': '      ',' then ': '      '
+    }
+    data = []
+    c.execute('SELECT pmid, article FROM corpus')
+    for record in c:
+        # prepare text by removing stopwords
+        article = record[1] + ' '
+        article = re.sub('({})'.format('|'.join(map(re.escape, stopwords.keys()))), lambda m: stopwords[m.group()], article)
+        end_idx = len(article) - 1   # index of the last character in article
+
+        # loop the artilce by making text window of 100 (the longest phrase)
+        window_start = 0
+        window_end = WIN_SIZE if end_idx > WIN_SIZE else end_idx
+
+        # find the whole word from the right
+        while article[window_end-1:window_end:] != ' '  and window_end <= end_idx :
+            window_end += 1
+
+        while window_start < end_idx  :
+            while window_end > window_start + 1:
+                text = article[window_start:window_end]
+                id = in_trie(trie, text)
+                if id :
+                    did =  int(str(id)[:2])
+                    term_id = int(str(id)[2:])
+                    data.append([record[0], did, term_id, window_start, window_end-1, text])
+                    window_start = window_end
+                    break
+                else :
+                    window_end -= 1
+                    while article[window_end:window_end+1] != ' ' and window_end > window_start :
+                        window_end -= 1
+
+            # shift the window to the right
+            while article[window_start:window_start+1] != ' ' and window_start < end_idx :
+                window_start += 1
+            window_start += 1
+
+            window_end = window_start + WIN_SIZE + 1
+            if window_end > end_idx : window_end = end_idx + 1
+            while article[window_end:window_end+1] != ' ' and window_end > 2 :
+                window_end -= 1
+    
+    c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
+    conn.commit()
+
+    conn.close()
+    return
+
 
 #------------------------------------------------------------------------------
 # update corpus with articles annotation 
@@ -329,7 +418,7 @@ def corpusUpdate(db) :
     
     # update corpus
     for pmid in pmid_list :
-        c.execute('SELECT did,tid,idx,term FROM annotation WHERE pmid = ?', [pmid])
+        c.execute('SELECT did,tid,start,end,term FROM annotation WHERE pmid = ?', [pmid])
         data = c.fetchall()
         if data :
             json_data = json.dumps(data)
@@ -443,7 +532,7 @@ def main():
             addDictionary(config['database'],dictionary['file'],dictionary['name'])
     
     if "annotate" in config['run'] :
-        annotate(config['database'])
+        annotate(config['database'],config['homographs'])
         corpusUpdate(config['database'])
         term_to_pmid(config['database'])
         termpair_to_pmid(config['database'])
