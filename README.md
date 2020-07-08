@@ -60,7 +60,7 @@ Tables:
          [2, 7, 54, 61, "migraine"],
       ]
       ```
-      This information is useful for highligting terms, each dictionary can be displayed in diferent color, when displaying article on the web.
+      This information is useful when highligting terms which can be displayed in diferent colors.
 - `annotation`: contains pmid-tid pairs
    - `id`: table primary key
    - `pmid`: article id assigned by PubMed

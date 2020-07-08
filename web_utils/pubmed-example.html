@@ -9,7 +9,7 @@
 
         <script>
             $(document).ready(function(){
-                $.getJSON( "getArticle.php?pmid=10767914", function( article ) {
+                $.getJSON( "getArticle.php", { pmid:10767914 }, function( article ) {
                     $('#pmid').html(article.pmid);
                     $('#title').html(article.title);
                     $('#author').html(article.author);
