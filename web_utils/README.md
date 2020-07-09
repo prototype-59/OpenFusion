@@ -18,3 +18,6 @@ This directory contains number of utilities written in Python and PHP that you c
 <p align="center">
 <img src="../img/AliceGraphExample.png" height="300"/>
 </p>
+
+#### Citation
+Get it here:  [![DOI](https://zenodo.org/badge/248162501.svg)](https://zenodo.org/badge/latestdoi/248162501)

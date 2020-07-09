@@ -9,23 +9,36 @@ __email__ = "aleksandar@radovanovic.com"
 __status__ = "Development"
 
 import os, sys, argparse, sqlite3, json, yaml, re
+import multiprocessing as mp
 from Bio import Entrez, Medline
 
 # some constants
 WIN_SIZE = 500  # text window size
+trie = ()
 _end = '_end_'  # trie structure related variables
 _id = 0
-
+stopwords = {
+    '.\u00B6': '  ','\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  ', ' than ': '      ',' then ': '      '
+}
 
 #------------------------------------------------------------------------------
-# convert PubMed dates into ISO standard (e.g. 1969 Sep-Oct  to yyyy-mm-dd)
+# convert wierd PubMed  dates into ISO standard (e.g. 1969 Sep-Oct  to yyyy-mm-dd)
 #------------------------------------------------------------------------------
 
 def date_to_isodate(str) :
-    str = str.replace("-", " ").replace("/", " ").replace(".", " ")
-    month = {'Fall':'9','Autumn':'9','Aut':'9','Winter':'12','Spring':'3','Summer':'6', 'Jan':'1','Feb':'2','Mar':'3','Apr':'4','May':'5','Jun':'6','Jul':'7','Aug':'8','Sep':'9','Oct':'10','Nov':'11','Dec':'12'}
-    date = str.split(" ")
 
+    whitespaces = {'-': ' ', '/':' ', '.': ' ','Supplement':' '}
+    quarter = {'First Quarter':'Feb','Second Quarter':'May','Third Quarter':'Aug','Fourth Quarter':'Nov'}
+    month = {
+        'Fall':'9','Autumn':'9','Aut':'9','Winter':'12','Spring':'3','Summer':'6',
+        'January':'1','February':'2','March':'3','April':'4','May':'5','June':'6','July':'7','August':'8','September':'9','Septembre':'9','October':'10','November':'11','Novembre':'11','December ':'12',
+        'Jan':'1','Feb':'2','Mar':'3','April':'4','Aprial':'4','Apr':'4','APR':'4','SMay':'5','May':'5','Mai':'5','Jun':'6','Jul':'7','Ago':'8','Aug':'8','Sept':'9','Sep':'9','SOct':'10','Oct':'10','Nov':'11','Dec':'12', 'Dic':'12'
+        }
+    str = re.sub('({})'.format('|'.join(map(re.escape, whitespaces.keys()))), lambda m: whitespaces[m.group()], str)
+    str = re.sub('({})'.format('|'.join(map(re.escape, quarter.keys()))), lambda m: quarter[m.group()], str)
+    str = re.compile(r'\s+').sub(' ', str).strip()
+
+    date = str.split(" ")
     if date[0].isdigit() :  
         str = date[0]
     else :
@@ -37,9 +50,10 @@ def date_to_isodate(str) :
             str += "-" + f"{int(date[1]):02d}"
         else:
             date[1] = re.sub('({})'.format('|'.join(map(re.escape, month.keys()))), lambda m: month[m.group()], date[1])
-            str += "-" + f"{int(date[1]):02d}"
-        if len(date) > 2 and date[2].isdigit() :
-            str += "-" + f"{int(date[2]):02d}"
+            if date[1].isdigit() :
+                str += "-" + f"{int(date[1]):02d}"
+                if len(date) > 2 and date[2].isdigit() :
+                    str += "-" + f"{int(date[2]):02d}"
     return str
 
 #------------------------------------------------------------------------------
@@ -59,7 +73,7 @@ def getPubMed(db, query, email):
     count = int(search_results["Count"])
     print("Found %i results" % count)
 
-    batch_size = 1000
+    batch_size = 5000
     out_handle = open(file, "w")
     for start in range(0, count, batch_size):
         end = min(count, start + batch_size)
@@ -209,7 +223,8 @@ def make_trie(dictionary):
 # False: if not found, term_id: if found
 #------------------------------------------------------------------------------
 
-def in_trie(trie, word):
+def in_trie(word):
+    global trie
     current_dict = trie
     for letter in word:
         if letter not in current_dict:
@@ -260,149 +275,138 @@ def annotate(db, homographs):
 
     return
 
-
 def homographs_annotate(db):
+
+    global trie
+
     conn = sqlite3.connect(db)
     c = conn.cursor()
 
-    # loop dictionaries 
+    # loop through dictionaries separately
     c.execute('SELECT did FROM dictionary')
     dictionary_list = [i[0] for i in c.fetchall()]
     
     # annotate for each of the dictionaries separately to include homographs
     for did in dictionary_list :
-
-        # get terms in this dictionary
-        c.execute('SELECT * FROM glossary WHERE did = ?', [did])
-        
-        # get dictionary terms
+        # create trie structure that holds term id as: ddtid 
+        # where dd is 2-digit dictionary number and tid is the term number e.g. 0176
+        c.execute("SELECT printf('%02d', did)  ||''|| tid AS id ,term FROM glossary WHERE did = ?", [did])
         dictionary = []
         for row in c :
             tid = row[0]
-            terms = row[2].split('\t') # synonyms
+            terms = row[1].split('\t') # synonyms
             for term in terms :
                 dictionary.append([tid, term])
-        
-        # contruct the dictionary trie
         trie = make_trie(dictionary)
 
-        # Annotating
-        stopwords = {
-         '.\u00B6': '  ','\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  ', ' than ': '      ',' then ': '      '
-        }
+        n_cpu  = mp.cpu_count()
+        pool = mp.Pool(n_cpu)
         data = []
         c.execute('SELECT pmid, article FROM corpus')
-        for record in c:
-            # prepare text by removing stopwords
-            article = record[1] + ' '
-            article = re.sub('({})'.format('|'.join(map(re.escape, stopwords.keys()))), lambda m: stopwords[m.group()], article)
-            end_idx = len(article) - 1   # index of the last character in article
-
-            # loop the artilce by making text window of 100 (the longest phrase)
-            window_start = 0
-            window_end = WIN_SIZE if end_idx > WIN_SIZE else end_idx
-
-            # find the whole word from the right
-            while article[window_end-1:window_end:] != ' '  and window_end <= end_idx :
-                window_end += 1
-
-            while window_start < end_idx  :
-                while window_end > window_start + 1:
-                    text = article[window_start:window_end]
-                    term_id = in_trie(trie, text)
-                    if term_id :
-                        data.append([record[0], did, term_id, window_start, window_end-1, text])
-                        window_start = window_end
-                        break
-                    else :
-                        window_end -= 1
-                        while article[window_end:window_end+1] != ' ' and window_end > window_start :
-                            window_end -= 1
-
-                # shift the window to the right
-                while article[window_start:window_start+1] != ' ' and window_start < end_idx :
-                    window_start += 1
-                window_start += 1
-
-                window_end = window_start + WIN_SIZE + 1
-                if window_end > end_idx : window_end = end_idx + 1
-                while article[window_end:window_end+1] != ' ' and window_end > 2 :
-                    window_end -= 1
-    
-        c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
-        conn.commit()
-
+        pool = mp.Pool(n_cpu)
+        while True:
+            records = c.fetchmany(n_cpu)
+            if not records:
+                if data :
+                    pool.close() 
+                    c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
+                    conn.commit()
+                break
+            else:
+                annotation_data = pool.map(process_article, [record for record in records])
+                for ann in annotation_data :
+                    data.extend(ann)
     conn.close()
     return
 
 def no_homographs_annotate(db):
+
+    global trie
+
     conn = sqlite3.connect(db)
     c = conn.cursor()
 
     # create trie structure that holds term id as: ddtid 
     # where dd is 2-digit dictionary number and tid is the term number e.g. 0176
-
+    
     c.execute("SELECT printf('%02d', did)  ||''|| tid AS id ,term FROM glossary")
     dictionary = []
     for row in c :
         tid = row[0]
         terms = row[1].split('\t') # synonyms
         for term in terms :
-            dictionary.append([tid, term])
-        
+            dictionary.append([tid, term])    
     trie = make_trie(dictionary)
-    
-    # Annotating
-    stopwords = {
-        '.\u00B6': '  ','\u00B6': ' ', '? ': '  ', ', ':'  ', '. ':'  ', '; ': '  ', ' than ': '      ',' then ': '      '
-    }
+
+    n_cpu  = mp.cpu_count()
+    pool = mp.Pool(n_cpu)
     data = []
     c.execute('SELECT pmid, article FROM corpus')
-    for record in c:
-        # prepare text by removing stopwords
-        article = record[1] + ' '
-        article = re.sub('({})'.format('|'.join(map(re.escape, stopwords.keys()))), lambda m: stopwords[m.group()], article)
-        end_idx = len(article) - 1   # index of the last character in article
+    pool = mp.Pool(n_cpu)
+    while True:
+        records = c.fetchmany(n_cpu)
+        if not records:
+            if data :
+                pool.close() 
+                c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
+                conn.commit()
+                conn.close()
+            return
+        else:
+            annotation_data = pool.map(process_article, [record for record in records])
+            for ann in annotation_data :
+                data.extend(ann)
 
-        # loop the artilce by making text window of 100 (the longest phrase)
-        window_start = 0
-        window_end = WIN_SIZE if end_idx > WIN_SIZE else end_idx
 
-        # find the whole word from the right
-        while article[window_end-1:window_end:] != ' '  and window_end <= end_idx :
-            window_end += 1
+#------------------------------------------------------------------------------
+# Process a single article
+#------------------------------------------------------------------------------
 
-        while window_start < end_idx  :
-            while window_end > window_start + 1:
-                text = article[window_start:window_end]
-                id = in_trie(trie, text)
-                if id :
-                    did =  int(str(id)[:2])
-                    term_id = int(str(id)[2:])
-                    data.append([record[0], did, term_id, window_start, window_end-1, text])
-                    window_start = window_end
-                    break
-                else :
-                    window_end -= 1
-                    while article[window_end:window_end+1] != ' ' and window_end > window_start :
-                        window_end -= 1
+def process_article (record) :
 
-            # shift the window to the right
-            while article[window_start:window_start+1] != ' ' and window_start < end_idx :
-                window_start += 1
-            window_start += 1
+    global trie
+    global stopwords
 
-            window_end = window_start + WIN_SIZE + 1
-            if window_end > end_idx : window_end = end_idx + 1
-            while article[window_end:window_end+1] != ' ' and window_end > 2 :
-                window_end -= 1
+    # prepare text by removing stopwords
+    article = record[1] + ' '
+    article = re.sub('({})'.format('|'.join(map(re.escape, stopwords.keys()))), lambda m: stopwords[m.group()], article)
+    end_idx = len(article) - 1   # index of the last character in article
+
+    # loop the artilce by making text window big enough
+    window_start = 0
+    window_end = WIN_SIZE if end_idx > WIN_SIZE else end_idx
+    data = []
     
-    c.executemany("INSERT INTO annotation (pmid, did, tid, start, end, term) VALUES (?,?,?,?,?,?)", data)
-    conn.commit()
+    # find the whole word from the right
+    while article[window_end-1:window_end:] != ' '  and window_end <= end_idx :
+        window_end += 1
 
-    conn.close()
-    return
+    while window_start < end_idx  :
+        while window_end > window_start + 1:
+            text = article[window_start:window_end]
+            id = in_trie(text)
+            if id :
+                did =  int(str(id)[:2])
+                term_id = int(str(id)[2:])
+                data.append([record[0], did, term_id, window_start, window_end-1, text])
+                window_start = window_end
+                break
+            else :
+                window_end -= 1
+                while article[window_end:window_end+1] != ' ' and window_end > window_start :
+                    window_end -= 1
 
+        # shift the window to the right
+        while article[window_start:window_start+1] != ' ' and window_start < end_idx :
+            window_start += 1
+        window_start += 1
+
+        window_end = window_start + WIN_SIZE + 1
+        if window_end > end_idx : window_end = end_idx + 1
+        while article[window_end:window_end+1] != ' ' and window_end > 2 :
+            window_end -= 1
+    
+    return data
 
 #------------------------------------------------------------------------------
 # update corpus with articles annotation 
@@ -518,7 +522,7 @@ def main():
     required.add_argument("-p", dest="p", help="YAML configuration file.",required=True)    
     args = parser.parse_args()
     config = yaml.safe_load(open(args.p))
-    
+   
     if "getPubMedCorpus" in config['run'] :
         getPubMed(config['database'],config['query'],config['email'])
         processPubmedFile(config['database'])
@@ -537,6 +541,7 @@ def main():
         term_to_pmid(config['database'])
         termpair_to_pmid(config['database'])
 
+    print("Done.")
     return
 
 if __name__ == "__main__":
