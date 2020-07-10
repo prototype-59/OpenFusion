@@ -443,7 +443,7 @@ def term_to_pmid(db) :
         tid INTEGER NOT NULL PRIMARY KEY UNIQUE,
         did INTEGER,
         term TEXT,
-        count INTEGER,
+        pmid_count INTEGER,
         pmid_list TEXT
     );
     """
@@ -451,7 +451,7 @@ def term_to_pmid(db) :
     conn.commit()
 
     sql = """
-        INSERT INTO term (tid,did,term,count,pmid_list)
+        INSERT INTO term (tid,did,term,pmid_count,pmid_list)
         SELECT T1.tid,T2.did,T2.term, COUNT(T1.pmid) AS count,GROUP_CONCAT(T1.pmid,',') AS pmid_list
         FROM (SELECT DISTINCT tid,pmid FROM annotation) T1
         INNER JOIN glossary T2 ON T1.tid = T2 .tid 
@@ -480,7 +480,7 @@ def termpair_to_pmid(db) :
         tid_2 INTEGER,
         did_2 INTEGER,
         term_2 TEXT,
-        count INTEGER,
+        pmid_count INTEGER,
         pmid_list TEXT
     );
     """
@@ -488,7 +488,7 @@ def termpair_to_pmid(db) :
     conn.commit()
 
     # loop throught pmid_list and find common pmid(s)
-    c.execute("SELECT * FROM term WHERE count > 1")
+    c.execute("SELECT * FROM term WHERE pmid_count > 1")
     termsA = c.fetchall()
     termsB = termsA
 
@@ -504,7 +504,7 @@ def termpair_to_pmid(db) :
                 else:
                     data.append([termB[0], termB[1], termB[2], termA[0], termA[1], termA[2],len(common), ','.join(common)])
 
-    conn.executemany("INSERT INTO termpair (tid_1,did_1,term_1,tid_2,did_2,term_2,count,pmid_list) VALUES (?,?,?,?,?,?,?,?)", data)
+    conn.executemany("INSERT INTO termpair (tid_1,did_1,term_1,tid_2,did_2,term_2,pmid_count,pmid_list) VALUES (?,?,?,?,?,?,?,?)", data)
     conn.commit()
 
     # cleanup termpair by deleting self-referencing and duplicate rows
