@@ -72,7 +72,7 @@ Tables:
    - `tid`: term id
    - `did`: dictionary id the term belongs to
    - `term`: term name
-   - `count`: number of articles the term has been found in
+   - `pmid_count`: number of articles the term has been found in
    - `pmid_list`: comma separated list of articles containing the term.
    This table can be used to display various statistics or as a data source for machine learning programs.
 - `termpair`: contains list of term co-occurences
@@ -83,7 +83,7 @@ Tables:
    - `tid_2`: term 2 id
    - `did_2`: dictionary id the term 2 belongs to
    - `term_2`: term 2name
-   - `count`: number of articles terms has been found in
+   - `pmid_count`: number of articles terms has been found in
    - `pmid_list`: comma separated list of articles containing the terms.
    This table can be used to generate complex graphs showing links between terms (e.g. by using the cytoscape (https://js.cytoscape.org). For example, terms are represented as colored blocks (as defined in the `dictionary` table and the links between them denote number of articles linked terms co-occur)
 <p align="center">
