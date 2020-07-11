@@ -1,6 +1,6 @@
-### OpenFusion / Text Annotation Tool
+### OpenFusion / Text Mining Tool
 
-**OpenFusion.py** is a text annotation tool written in Python for creating **SQLite** biomedical databases on specific topic by using **PubMed** (https://pubmed.ncbi.nlm.nih.gov/) as a source. This database can be used locally or on the web.
+**OpenFusion.py** is a text mining tool written in Python for creating **SQLite** biomedical databases on specific topic by using **PubMed** (https://pubmed.ncbi.nlm.nih.gov/) as a source. This database can be used locally or on the web.
 <p align="center">
 <img src="img/openfusion.svg" height="300"/>
 </p>
