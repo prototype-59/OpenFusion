@@ -25,10 +25,10 @@ while ( $dictionary[] = $result->fetchArray(SQLITE3_ASSOC) ) {  }
 
 # get nodes connected to the given one
 $sth = $dbh->prepare("
-    SELECT id AS rec_id, tid_2 AS id, term_2 AS term, did_2 AS did, count
+    SELECT id AS rec_id, tid_2 AS id, term_2 AS term, did_2 AS did, pmid_count
     FROM termpair 
     WHERE tid_1 = :id 
-    ORDER BY count DESC LIMIT 50
+    ORDER BY pmid_count DESC LIMIT 50
 ");
 $sth->bindValue(':id', $id);
 $result = $sth->execute();
@@ -43,7 +43,7 @@ while ( $data = $result->fetchArray(SQLITE3_ASSOC) )
     $synonyms = preg_split('/\t/', $data['term']);
     $data['term'] = $synonyms[0];   // only the first term name will be used
     $nodes[] = array('data' => $data);
-    $edges[] = array('data' => array('id' => "e" .$data['rec_id'], 'color' => $data['color'],'source' => $id .'', 'target' => $data['id'], 'weight' => $data['count']));
+    $edges[] = array('data' => array('id' => "e" .$data['rec_id'], 'color' => $data['color'],'source' => $id .'', 'target' => $data['id'], 'weight' => $data['pmid_count']));
 };
 $graph = array(
         'nodes' =>  $nodes,

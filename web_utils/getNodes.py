@@ -30,8 +30,8 @@ dictionary = c.fetchall()
 nodes = []
 edges = []
 c.execute("""
-    SELECT id AS rec_id, tid_2 AS id, term_2 AS term, did_2 AS did, count
-    FROM termpair  WHERE tid_1 = ? ORDER BY count DESC LIMIT 50"""
+    SELECT id AS rec_id, tid_2 AS id, term_2 AS term, did_2 AS did, pmid_count
+    FROM termpair  WHERE tid_1 = ? ORDER BY pmid_count DESC LIMIT 50"""
     ,[id])
 records = c.fetchall()
 for rec in records:
@@ -42,7 +42,7 @@ for rec in records:
             'id': int(rec['id']),
             'term':synonyms[0],
             'did': int(rec['did']),
-            'count': int(rec['count']),
+            'count': int(rec['pmid_count']),
             'color': dictionary[int(rec['did'])-1]['color'],
             'shape': dictionary[int(rec['did'])-1]['shape'],
         }
@@ -53,9 +53,9 @@ for rec in records:
             'color': dictionary[int(rec['did'])-1]['color'],
             'source': id,
             'target': rec['id'],
-            'weight': rec['count']
+            'weight': rec['pmid_count']
         }
     })
 data = {'nodes': nodes, 'edges': edges}
-print "Content-type: application/json\r\n\r\n"
+print ("Content-type: application/json\r\n\r\n")
 print (json.dumps(data))
