@@ -49,7 +49,7 @@
             
                 });
 
-                $.getJSON('getNodes.php', { id:4 }, function(data){ 
+                $.getJSON('getNodes.py', { id:4 }, function(data){ 
                     if ( !$.isEmptyObject(data) ) { 
                         cy.add( data );
                         cy.layout( { name: 'random' } ).run();

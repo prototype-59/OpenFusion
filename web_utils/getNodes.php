@@ -28,6 +28,11 @@ $sth = $dbh->prepare("
     SELECT id AS rec_id, tid_2 AS id, term_2 AS term, did_2 AS did, pmid_count
     FROM termpair 
     WHERE tid_1 = :id 
+    UNION
+    SELECT id AS rec_id, tid_1 AS id, term_1 AS term, did_1 AS did, pmid_count
+    FROM termpair 
+    WHERE tid_2 = :id 
+    GROUP BY rec_id
     ORDER BY pmid_count DESC LIMIT 50
 ");
 $sth->bindValue(':id', $id);

@@ -52,7 +52,6 @@ $data = array (
 header("Content-Type: application/json;charset=utf-8");
 print json_encode($data,JSON_PRETTY_PRINT);
 
-
 //-----------------------------------------------------------------------------
 // reverse array of arrays sort based on the 3rd index
 //-----------------------------------------------------------------------------
