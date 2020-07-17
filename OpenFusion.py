@@ -8,7 +8,8 @@ __maintainer__ = "Aleksandar Radovanovic"
 __email__ = "aleksandar@radovanovic.com"
 __status__ = "Development"
 
-import os, sys, argparse, sqlite3, json, yaml, re
+import os, sys, argparse, json, yaml, re
+import sqlite3 as sqlite
 import multiprocessing as mp
 from Bio import Entrez, Medline
 
@@ -97,7 +98,7 @@ def getPubMed(db, query, email):
 #------------------------------------------------------------------------------
 
 def processPubmedFile(db) :
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS corpus")
     conn.commit()
@@ -139,7 +140,7 @@ def processPubmedFile(db) :
 #------------------------------------------------------------------------------
 
 def dropDictionary(db) :
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS dictionary")
     c.execute("DROP TABLE IF EXISTS glossary")
@@ -155,7 +156,7 @@ def addDictionary(db, file, name) :
     colors = ["#ffc75f", "#ff9671", "#ff8066", "#fbeaff", "#f9f871", "#e4f0f5", "#1b4f72", "#d5cabd", "#845ec2", "#66095d"]
     shapes = ["ellipse", "star", "round-triangle", "rectangle", "round-pentagon", "vee", "tag", "barrel", "rhomboid", "round-diamond"]
 
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     sql = """
@@ -243,7 +244,7 @@ def in_trie(word):
 def annotate(db, homographs):
     if not os.path.exists(db):
         sys.exit("Database " + db + " does not exists!")
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
     
     # reset previous annotation
@@ -278,7 +279,7 @@ def homographs_annotate(db):
 
     global trie
 
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     # loop through dictionaries separately
@@ -289,10 +290,11 @@ def homographs_annotate(db):
     for did in dictionary_list :
         # create trie structure that holds term id as: ddtid 
         # where dd is 2-digit dictionary number and tid is the term number e.g. 0176
-        c.execute("SELECT printf('%02d', did)  ||''|| tid AS id ,term FROM glossary WHERE did = ?", [did])
+
+        c.execute("SELECT tid AS id ,term FROM glossary WHERE did = ?", [did])
         dictionary = []
         for row in c :
-            tid = row[0]
+            tid = "{:02d}{:d}".format(did,row[0])
             terms = row[1].split('\t') # synonyms
             for term in terms :
                 dictionary.append([tid, term])
@@ -322,17 +324,17 @@ def no_homographs_annotate(db):
 
     global trie
 
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     # create trie structure that holds term id as: ddtid 
     # where dd is 2-digit dictionary number and tid is the term number e.g. 0176
     
-    c.execute("SELECT printf('%02d', did)  ||''|| tid AS id ,term FROM glossary")
+    c.execute("SELECT did, tid AS id ,term FROM glossary")
     dictionary = []
     for row in c :
-        tid = row[0]
-        terms = row[1].split('\t') # synonyms
+        tid = "{:02d}{:d}".format(row[0],row[1])
+        terms = row[2].split('\t') # synonyms
         for term in terms :
             dictionary.append([tid, term])    
     trie = make_trie(dictionary)
@@ -412,7 +414,7 @@ def process_article (record) :
 #------------------------------------------------------------------------------
 
 def corpusUpdate(db) :
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     # get article list
@@ -432,7 +434,7 @@ def corpusUpdate(db) :
 
 # term to pmid_list mappings
 def term_to_pmid(db) :
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     c.execute("DROP TABLE IF EXISTS term")
@@ -465,7 +467,7 @@ def term_to_pmid(db) :
 #------------------------------------------------------------------------------
 
 def termpair_to_pmid(db) :
-    conn = sqlite3.connect(db)
+    conn = sqlite.connect(db)
     c = conn.cursor()
 
     c.execute("DROP TABLE IF EXISTS termpair")
