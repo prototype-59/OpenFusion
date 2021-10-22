@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 __author__ = "Aleksandar Radovanovic"
 __copyright__ = "Copyright 2020, project OpenFusion"
@@ -11,6 +11,7 @@ __status__ = "Development"
 import os, sys, argparse, json, yaml, re
 import sqlite3 as sqlite
 import multiprocessing as mp
+from itertools import repeat
 from Bio import Entrez, Medline
 
 # some constants
@@ -98,7 +99,7 @@ def getPubMed(db, query, email):
 #------------------------------------------------------------------------------
 
 def processPubmedFile(db) :
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS corpus")
     conn.commit()
@@ -140,7 +141,7 @@ def processPubmedFile(db) :
 #------------------------------------------------------------------------------
 
 def dropDictionary(db) :
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
     c.execute("DROP TABLE IF EXISTS dictionary")
     c.execute("DROP TABLE IF EXISTS glossary")
@@ -156,7 +157,7 @@ def addDictionary(db, file, name) :
     colors = ["#ffc75f", "#ff9671", "#ff8066", "#fbeaff", "#f9f871", "#e4f0f5", "#1b4f72", "#d5cabd", "#845ec2", "#66095d"]
     shapes = ["ellipse", "star", "round-triangle", "rectangle", "round-pentagon", "vee", "tag", "barrel", "rhomboid", "round-diamond"]
 
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     sql = """
@@ -223,8 +224,8 @@ def make_trie(dictionary):
 # False: if not found, term_id: if found
 #------------------------------------------------------------------------------
 
-def in_trie(word):
-    global trie
+def in_trie(trie, word):
+    #global trie
     current_dict = trie
     for letter in word:
         if letter not in current_dict:
@@ -242,9 +243,9 @@ def in_trie(word):
 #------------------------------------------------------------------------------
 
 def annotate(db, homographs):
-    if not os.path.exists(db):
+    if not os.path.exists(db+'.db'):
         sys.exit("Database " + db + " does not exists!")
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
     
     # reset previous annotation
@@ -279,7 +280,7 @@ def homographs_annotate(db):
 
     global trie
 
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     # loop through dictionaries separately
@@ -314,7 +315,8 @@ def homographs_annotate(db):
                     conn.commit()
                 break
             else:
-                annotation_data = pool.map(process_article, [record for record in records])
+                #annotation_data = pool.map(process_article, [record for record in records])
+                annotation_data = pool.starmap(process_article, zip(records,repeat(trie)))
                 for ann in annotation_data :
                     data.extend(ann)
     conn.close()
@@ -324,7 +326,7 @@ def no_homographs_annotate(db):
 
     global trie
 
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     # create trie structure that holds term id as: ddtid 
@@ -338,7 +340,8 @@ def no_homographs_annotate(db):
         for term in terms :
             dictionary.append([tid, term])    
     trie = make_trie(dictionary)
-
+    
+    
     n_cpu  = mp.cpu_count()
     pool = mp.Pool(n_cpu)
     data = []
@@ -354,7 +357,8 @@ def no_homographs_annotate(db):
                 conn.close()
             return
         else:
-            annotation_data = pool.map(process_article, [record for record in records])
+            #annotation_data = pool.map(process_article, [record for record in records]) # old python
+            annotation_data = pool.starmap(process_article, zip(records,repeat(trie)))
             for ann in annotation_data :
                 data.extend(ann)
 
@@ -363,9 +367,8 @@ def no_homographs_annotate(db):
 # Process a single article
 #------------------------------------------------------------------------------
 
-def process_article (record) :
+def process_article (record,trie) :
 
-    global trie
     global stopwords
 
     # prepare text by removing stopwords
@@ -385,7 +388,7 @@ def process_article (record) :
     while window_start < end_idx  :
         while window_end > window_start + 1:
             text = article[window_start:window_end]
-            id = in_trie(text)
+            id = in_trie(trie, text)
             if id :
                 did =  int(str(id)[:2])
                 term_id = int(str(id)[2:])
@@ -414,7 +417,7 @@ def process_article (record) :
 #------------------------------------------------------------------------------
 
 def corpusUpdate(db) :
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     # get article list
@@ -434,7 +437,7 @@ def corpusUpdate(db) :
 
 # term to pmid_list mappings
 def term_to_pmid(db) :
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     c.execute("DROP TABLE IF EXISTS term")
@@ -467,7 +470,7 @@ def term_to_pmid(db) :
 #------------------------------------------------------------------------------
 
 def termpair_to_pmid(db) :
-    conn = sqlite.connect(db)
+    conn = sqlite.connect(db+'.db')
     c = conn.cursor()
 
     c.execute("DROP TABLE IF EXISTS termpair")
@@ -489,7 +492,7 @@ def termpair_to_pmid(db) :
     conn.commit()
 
     # loop throught pmid_list and find common pmid(s)
-    c.execute("SELECT * FROM term WHERE pmid_count > 1")
+    c.execute("SELECT * FROM term")# WHERE pmid_count > 1")
     termsA = c.fetchall()
     termsB = termsA
 
